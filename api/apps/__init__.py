@@ -18,7 +18,7 @@ import sys
 import logging
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from flask import Blueprint, Flask, jsonify
+from flask import Blueprint, Flask
 from werkzeug.wrappers.request import Request
 from flask_cors import CORS
 from flasgger import Swagger
@@ -81,16 +81,6 @@ app.url_map.strict_slashes = False
 app.json_encoder = CustomJSONEncoder
 app.errorhandler(Exception)(server_error_response)
 
-# Add custom 401 error handler to return JSON instead of HTML
-@app.errorhandler(401)
-def handle_unauthorized(e):
-    """Handle 401 Unauthorized errors and return JSON response"""
-    return jsonify({
-        "code": 401,
-        "message": "Unauthorized: Your session has expired or is invalid. Please login again.",
-        "data": None
-    }), 401
-
 ## convince for dev and debug
 # app.config["LOGIN_DISABLED"] = True
 app.config["SESSION_PERMANENT"] = False
@@ -102,16 +92,6 @@ app.config["MAX_CONTENT_LENGTH"] = int(
 Session(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
-
-# Configure Flask-Login to return JSON for unauthorized requests
-@login_manager.unauthorized_handler
-def unauthorized_callback():
-    """Return JSON response for unauthorized access"""
-    return jsonify({
-        "code": 401,
-        "message": "Unauthorized: Your session has expired or is invalid. Please login again.",
-        "data": None
-    }), 401
 
 commands.register_commands(app)
 
