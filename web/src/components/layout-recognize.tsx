@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 
 const enum DocumentType {
   DeepDOC = 'DeepDOC',
+  MinerU = 'MinerU',
   PlainText = 'Plain Text',
 }
 
@@ -15,8 +16,9 @@ const LayoutRecognize = () => {
   const allOptions = useSelectLlmOptionsByModelType();
 
   const options = useMemo(() => {
-    const list = [DocumentType.DeepDOC, DocumentType.PlainText].map((x) => ({
-      label: x === DocumentType.PlainText ? t(camelCase(x)) : 'DeepDoc',
+    const list = [DocumentType.DeepDOC, DocumentType.MinerU, DocumentType.PlainText].map((x) => ({
+      label: x === DocumentType.PlainText ? t(camelCase(x)) : 
+             x === DocumentType.MinerU ? 'MinerU' : 'DeepDoc',
       value: x,
     }));
 
