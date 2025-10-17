@@ -63,9 +63,10 @@ const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
                   {tag}
                 </div>
                 <X
-                  className="w-4 h-4 text-muted-foreground hover:text-primary"
+                  className="w-4 h-4 text-muted-foreground hover:text-primary cursor-pointer"
                   onClick={(e) => {
                     e.preventDefault();
+                    e.stopPropagation();
                     handleClose(tag);
                   }}
                 />
