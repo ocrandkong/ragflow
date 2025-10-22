@@ -1,5 +1,4 @@
 import { PlusOutlined } from '@ant-design/icons';
-import { TweenOneGroup } from 'rc-tween-one';
 import React, { useEffect, useRef, useState } from 'react';
 
 import { X } from 'lucide-react';
@@ -16,7 +15,7 @@ interface EditTagsProps {
 }
 
 const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
-  ({ value = [], onChange }: EditTagsProps, ref) => {
+  ({ value = [], onChange }: EditTagsProps) => {
     const [inputVisible, setInputVisible] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -28,11 +27,7 @@ const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
     }, [inputVisible]);
 
     const handleClose = (removedTag: string) => {
-      console.log('🗑️ EditTag handleClose called, removing:', removedTag);
-      console.log('🗑️ Current value:', value);
       const newTags = value?.filter((tag) => tag !== removedTag);
-      console.log('🗑️ New tags:', newTags);
-      console.log('🗑️ onChange function:', onChange);
       onChange?.(newTags ?? []);
     };
 
@@ -45,18 +40,12 @@ const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
     };
 
     const handleInputConfirm = () => {
-      console.log('➕ EditTag handleInputConfirm called');
-      console.log('➕ Input value:', inputValue);
-      console.log('➕ Current tags:', value);
-      if (inputValue) {
+      if (inputValue && value) {
         const newTags = inputValue
           .split(';')
           .map((tag) => tag.trim())
-          .filter((tag) => tag && !(value || []).includes(tag));
-        console.log('➕ New tags to add:', newTags);
-        console.log('➕ Final tags:', [...(value || []), ...newTags]);
-        console.log('➕ onChange function:', onChange);
-        onChange?.([...(value || []), ...newTags]);
+          .filter((tag) => tag && !value.includes(tag));
+        onChange?.([...value, ...newTags]);
       }
       setInputVisible(false);
       setInputValue('');
@@ -64,28 +53,25 @@ const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
 
     const forMap = (tag: string) => {
       return (
-        <div
-          key={tag}
-          className="inline-flex items-center gap-1.5 border-dashed border px-2 py-1 rounded-sm bg-bg-card"
-        >
-          <HoverCard>
-            <HoverCardContent side="top">{tag}</HoverCardContent>
-            <HoverCardTrigger asChild>
-              <span className="max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap cursor-default block">
-                {tag}
-              </span>
-            </HoverCardTrigger>
-          </HoverCard>
-          <X
-            className="w-4 h-4 text-muted-foreground hover:text-primary cursor-pointer flex-shrink-0"
-            onClick={(e) => {
-              console.log('🗑️ Delete button clicked for:', tag);
-              e.preventDefault();
-              e.stopPropagation();
-              handleClose(tag);
-            }}
-          />
-        </div>
+        <HoverCard key={tag}>
+          <HoverCardContent side="top">{tag}</HoverCardContent>
+          <HoverCardTrigger asChild>
+            <div className="w-fit flex items-center justify-center gap-2 border-dashed border px-2 py-1 rounded-sm bg-bg-card">
+              <div className="flex gap-2 items-center">
+                <div className="max-w-80 overflow-hidden text-ellipsis">
+                  {tag}
+                </div>
+                <X
+                  className="w-4 h-4 text-muted-foreground hover:text-primary"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleClose(tag);
+                  }}
+                />
+              </div>
+            </div>
+          </HoverCardTrigger>
+        </HoverCard>
       );
     };
 
@@ -97,11 +83,11 @@ const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
 
     return (
       <div>
-        {inputVisible ? (
+        {inputVisible && (
           <Input
             ref={inputRef}
             type="text"
-            className="h-8 bg-bg-card"
+            className="h-8 bg-bg-card mb-1"
             value={inputValue}
             onChange={handleInputChange}
             onBlur={handleInputConfirm}
@@ -111,36 +97,20 @@ const EditTag = React.forwardRef<HTMLDivElement, EditTagsProps>(
               }
             }}
           />
-        ) : (
-          <Button
-            variant="dashed"
-            className="w-fit flex items-center justify-center gap-2 bg-bg-card"
-            onClick={showInput}
-            style={tagPlusStyle}
-          >
-            <PlusOutlined />
-          </Button>
         )}
-        {Array.isArray(tagChild) && tagChild.length > 0 && (
-          <TweenOneGroup
-            className="flex gap-2 flex-wrap mt-2"
-            enter={{
-              scale: 0.8,
-              opacity: 0,
-              type: 'from',
-              duration: 100,
-            }}
-            onEnd={(e) => {
-              if (e.type === 'appear' || e.type === 'enter') {
-                (e.target as any).style = 'display: inline-block';
-              }
-            }}
-            leave={{ opacity: 0, width: 0, scale: 0, duration: 200 }}
-            appear={false}
-          >
-            {tagChild}
-          </TweenOneGroup>
-        )}
+        <div className="flex gap-2 py-1">
+          {Array.isArray(tagChild) && tagChild.length > 0 && <>{tagChild}</>}
+          {!inputVisible && (
+            <Button
+              variant="dashed"
+              className="w-fit flex items-center justify-center gap-2 bg-bg-card"
+              onClick={showInput}
+              style={tagPlusStyle}
+            >
+              <PlusOutlined />
+            </Button>
+          )}
+        </div>
       </div>
     );
   },

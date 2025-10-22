@@ -16,8 +16,8 @@ import {
 
 export const enum ParseDocumentType {
   DeepDOC = 'DeepDOC',
-  MinerU = 'MinerU',
   PlainText = 'Plain Text',
+  MinerU = 'MinerU',
 }
 
 export function LayoutRecognizeFormField({
@@ -39,10 +39,12 @@ export function LayoutRecognizeFormField({
   const options = useMemo(() => {
     const list = optionsWithoutLLM
       ? optionsWithoutLLM
-      : [ParseDocumentType.DeepDOC, ParseDocumentType.MinerU, ParseDocumentType.PlainText].map((x) => ({
-          label:
-            x === ParseDocumentType.PlainText ? t(camelCase(x)) : 
-            x === ParseDocumentType.MinerU ? 'MinerU' : 'DeepDoc',
+      : [
+          ParseDocumentType.DeepDOC,
+          ParseDocumentType.PlainText,
+          ParseDocumentType.MinerU,
+        ].map((x) => ({
+          label: x === ParseDocumentType.PlainText ? t(camelCase(x)) : x,
           value: x,
         }));
 
