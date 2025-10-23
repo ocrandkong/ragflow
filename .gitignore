@@ -138,6 +138,13 @@ web_modules/
 .env.production.local
 .env.local
 
+# Google Sheets service account keys (security sensitive)
+mcp/key/*.json
+!mcp/key/.gitkeep
+
+# Custom MCP configurations
+mcp/.env
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -195,3 +202,19 @@ ragflow_cli.egg-info
 
 # Default backup dir
 backup
+
+# ============================================
+# Custom configurations (keep during merges)
+# ============================================
+
+# Google Sheets service account keys (security sensitive)
+mcp/key/*.json
+!mcp/key/.gitkeep
+
+# Custom MCP configurations  
+mcp/config.local.*
+
+# Docker custom configurations (manually review before merging upstream)
+docker/.env.local
+docker/.env.custom
+docker/docker-compose.override.yml
