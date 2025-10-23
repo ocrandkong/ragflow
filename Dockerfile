@@ -155,14 +155,8 @@ RUN --mount=type=cache,id=ragflow_npm,target=/root/.npm,sharing=locked \
 
 COPY .git /ragflow/.git
 
-    RUN version_info=$(git describe --tags --match=v* --always); \
-        if [ "$LIGHTEN" == "1" ]; then \
-            version_info="$version_info slim"; \
-        else \
-            version_info="$version_info full"; \
-        fi; \
-    echo "RAGFlow version: $version_info"; \
-    echo $version_info > /ragflow/VERSION
+RUN version_info=$(git describe --tags --match=v* --first-parent --always); \
+    version_info="$version_info"; \
     echo "RAGFlow version: $version_info"; \
     echo $version_info > /ragflow/VERSION
 
