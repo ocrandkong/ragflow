@@ -92,6 +92,15 @@ def pip_install_torch():
     device = os.getenv("DEVICE", "cpu")
     if device=="cpu":
         return
+    
+    # Check if torch is already installed
+    try:
+        import torch
+        logging.info(f"PyTorch {torch.__version__} already installed, skipping installation")
+        return
+    except ImportError:
+        pass
+    
     logging.info("Installing pytorch")
     pkg_names = ["torch>=2.5.0,<3.0.0"]
     subprocess.check_call([sys.executable, "-m", "pip", "install", *pkg_names])
