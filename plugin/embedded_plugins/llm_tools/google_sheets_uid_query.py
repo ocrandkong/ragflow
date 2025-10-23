@@ -8,7 +8,10 @@ It connects to Google Sheets API using service account credentials and retrieves
 import json
 import logging
 import os
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Any
+
+if TYPE_CHECKING:
+    import gspread
 
 try:
     import gspread
@@ -50,8 +53,8 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
     ]
     
     # Cache for Google Sheets client to avoid repeated authentication
-    _client_cache: Optional[gspread.Client] = None
-    _sheet_cache: Optional[gspread.Worksheet] = None
+    _client_cache: Optional[Any] = None
+    _sheet_cache: Optional[Any] = None
 
     @classmethod
     def get_metadata(cls) -> LLMToolMetadata:
@@ -76,7 +79,7 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
         }
 
     @classmethod
-    def _get_client(cls) -> gspread.Client:
+    def _get_client(cls) -> Any:
         """Get or create cached Google Sheets client"""
         if not GSPREAD_AVAILABLE:
             raise RuntimeError(
@@ -115,7 +118,7 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
         return cls._client_cache
 
     @classmethod
-    def _get_sheet(cls) -> gspread.Worksheet:
+    def _get_sheet(cls) -> Any:
         """Get or create cached worksheet"""
         if cls._sheet_cache is None:
             try:
