@@ -139,14 +139,15 @@ class ParserParam(ProcessParamBase):
                     "oggvorbis",
                     "ape"
                 ],
-                "output_format": "json",
+                "output_format": "text",
             },
             "video": {
                 "suffix":[
                     "mp4",
-                    "av"
+                    "avi",
+                    "mkv"
                 ],
-                "output_format": "json",
+                "output_format": "text",
             },
         }
 
