@@ -441,6 +441,20 @@ async def list_tools(*, connector) -> list[types.Tool]:
                 "required": ["question"],
             },
         ),
+        types.Tool(
+            name="google_sheets_uid_query",
+            description="Query user information by UID from Google Sheets. This tool connects to a Google Sheets document and retrieves user data based on the provided user_id (UID). It returns all information associated with the user, including their rewards and other relevant data.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "uid": {
+                        "type": "string",
+                        "description": "The user ID (UID) to query. This should be the unique identifier for the user in the Google Sheet.",
+                    }
+                },
+                "required": ["uid"],
+            },
+        ),
     ]
 
 
@@ -490,6 +504,26 @@ async def call_tool(name: str, arguments: dict, *, connector) -> list[types.Text
             rerank_id=rerank_id,
             force_refresh=force_refresh,
         )
+    elif name == "google_sheets_uid_query":
+        uid = arguments.get("uid", "")
+        if not uid:
+            return [types.TextContent(type="text", text=json.dumps({"success": False, "error": "UID is required"}))]
+        
+        try:
+            # Import and use the Google Sheets plugin
+            from plugin.embedded_plugins.llm_tools.google_sheets_uid_query import GoogleSheetsUIDQueryPlugin
+            plugin = GoogleSheetsUIDQueryPlugin()
+            result = plugin.invoke(uid=uid)
+            return [types.TextContent(type="text", text=result)]
+        except Exception as e:
+            error_result = {
+                "success": False,
+                "uid": uid,
+                "error": str(e),
+                "message": f"Failed to query Google Sheets: {e}"
+            }
+            return [types.TextContent(type="text", text=json.dumps(error_result, ensure_ascii=False))]
+    
     raise ValueError(f"Tool not found: {name}")
 
 
