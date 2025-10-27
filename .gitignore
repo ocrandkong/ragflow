@@ -215,6 +215,9 @@ mcp/key/*.json
 mcp/config.local.*
 
 # Docker custom configurations (manually review before merging upstream)
+docker/.env
 docker/.env.local
 docker/.env.custom
+docker/docker-compose.yml
+docker/docker-compose-base.yml
 docker/docker-compose.override.yml

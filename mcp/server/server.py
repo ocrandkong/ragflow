@@ -443,13 +443,17 @@ async def list_tools(*, connector) -> list[types.Tool]:
         ),
         types.Tool(
             name="google_sheets_uid_query",
-            description="Query user information by UID from Google Sheets. This tool connects to a Google Sheets document and retrieves user data based on the provided user_id (UID). It returns all information associated with the user, including their rewards and other relevant data.",
+            description="Query user information by UID from Google Sheets. **CRITICAL**: This tool REQUIRES the 'query_context' parameter to determine which data sheet to query. You MUST extract the classification category from the conversation context (typically from a Categorize node output like {Categorize:LuckyChickenRhyme@category_name}) and pass it as query_context. Supported categories: '查询个人活动奖励类' (reward sheet), '查询黑牌用户类' (riskcontrol sheet), '查询问题类' (riskcontrol sheet). DO NOT call this tool with only the uid parameter - you MUST include query_context.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "uid": {
                         "type": "string",
-                        "description": "The user ID (UID) to query. This should be the unique identifier for the user in the Google Sheet.",
+                        "description": "The user ID (UID) to query.",
+                    },
+                    "query_context": {
+                        "type": "string",
+                        "description": "**REQUIRED IN PRACTICE**: The classification category that determines which sheet to query. You must provide this parameter with the exact classification result from your categorization system. Valid values: '查询个人活动奖励类', '查询黑牌用户类', '查询问题类'. Example: if the category is '查询黑牌用户类', you MUST pass query_context='查询黑牌用户类'. Without this parameter, the query will default to the wrong data source.",
                     }
                 },
                 "required": ["uid"],
@@ -547,6 +551,8 @@ async def call_tool(name: str, arguments: dict, *, connector) -> list[types.Text
         )
     elif name == "google_sheets_uid_query":
         uid = arguments.get("uid", "")
+        query_context = arguments.get("query_context", "")
+        
         if not uid:
             return [types.TextContent(type="text", text=json.dumps({"success": False, "error": "UID is required"}))]
         
@@ -554,7 +560,7 @@ async def call_tool(name: str, arguments: dict, *, connector) -> list[types.Text
             # Import and use the Google Sheets plugin
             from plugin.embedded_plugins.llm_tools.google_sheets_uid_query import GoogleSheetsUIDQueryPlugin
             plugin = GoogleSheetsUIDQueryPlugin()
-            result = plugin.invoke(uid=uid)
+            result = plugin.invoke(uid=uid, query_context=query_context)
             return [types.TextContent(type="text", text=result)]
         except Exception as e:
             error_result = {

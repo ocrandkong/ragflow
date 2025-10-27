@@ -45,6 +45,8 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
         "1reki8KLt9UenPTMWTqwNJx9c9dHNGvSdLa7ZXA3dcww"
     )
     
+
+    
     # Authorization scopes
     SCOPES = [
         "https://www.googleapis.com/auth/spreadsheets.readonly",
@@ -53,7 +55,7 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
     
     # Cache for Google Sheets client to avoid repeated authentication
     _client_cache: Optional[Any] = None
-    _sheet_cache: Optional[Any] = None
+    _sheet_cache: dict[str, Any] = {}  # Cache multiple sheets by exact name
 
     @classmethod
     def get_metadata(cls) -> LLMToolMetadata:
@@ -62,9 +64,12 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
             "displayName": "$t:google_sheets_uid_query.name",
             "description": (
                 "Query user information by UID from Google Sheets. "
-                "This tool connects to a Google Sheets document and retrieves user data "
-                "based on the provided user_id (UID). It returns all information associated "
-                "with the user, including their rewards and other relevant data."
+                "This tool uses predefined classification categories to determine which sheet to query. "
+                "IMPORTANT: You MUST provide both uid and query_context parameters. "
+                "The query_context should contain the classification category such as: "
+                "'查询个人活动奖励类' (for reward data), '查询黑牌用户类' (for riskcontrol data), "
+                "or '查询问题类' (for general inquiries). "
+                "The system will automatically map the category to the correct data sheet."
             ),
             "displayDescription": "$t:google_sheets_uid_query.description",
             "parameters": {
@@ -73,6 +78,21 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
                     "description": "The user ID (UID) to query. This should be the unique identifier for the user in the Google Sheet.",
                     "displayDescription": "$t:google_sheets_uid_query.params.uid",
                     "required": True
+                },
+                "query_context": {
+                    "type": "string",
+                    "description": (
+                        "The classification category that determines which sheet to query. "
+                        "RECOMMENDED: Pass the exact category from your classification system (e.g., {Categorize:LuckyChickenRhyme@category_name}). "
+                        "Supported categories: "
+                        "'查询个人活动奖励类' → reward sheet, "
+                        "'查询黑牌用户类' → riskcontrol sheet, "
+                        "'查询问题类' → riskcontrol sheet. "
+                        "If not provided, the system will try to infer from the user's question keywords, but providing the category ensures more accurate routing."
+                    ),
+                    "displayDescription": "$t:google_sheets_uid_query.params.query_context",
+                    "required": False,
+                    "default": ""
                 }
             }
         }
@@ -117,44 +137,133 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
         return cls._client_cache
 
     @classmethod
-    def _get_sheet(cls) -> Any:
-        """Get or create cached worksheet"""
-        if cls._sheet_cache is None:
+    def _get_sheet(cls, sheet_name: str = "reward") -> Any:
+        """Get or create cached worksheet by exact name"""
+        # Use exact sheet name as cache key (case-sensitive)
+        if sheet_name not in cls._sheet_cache:
             try:
                 client = cls._get_client()
                 spreadsheet = client.open_by_key(cls.SHEET_ID)
-                cls._sheet_cache = spreadsheet.sheet1
-                logging.info(f"Successfully connected to Google Sheet: {spreadsheet.title}")
-            except gspread.exceptions.APIError as e:
-                logging.error(f"Google Sheets API error: {e}")
-                raise RuntimeError(
-                    f"Failed to access Google Sheet: {e}. "
-                    f"This usually means:\n"
-                    f"1. The service account doesn't have permission to access the sheet\n"
-                    f"2. The Sheet ID is incorrect: {cls.SHEET_ID}\n"
-                    f"Please share the Google Sheet with the service account email."
-                )
+                
+                # Try to get the worksheet by exact title
+                try:
+                    worksheet = spreadsheet.worksheet(sheet_name)
+                    cls._sheet_cache[sheet_name] = worksheet
+                    logging.info(f"Successfully connected to Google Sheet: {spreadsheet.title}, worksheet: {worksheet.title}")
+                    
+                except Exception as ws_error:
+                    # List available worksheets for debugging
+                    available_sheets = [ws.title for ws in spreadsheet.worksheets()]
+                    raise ValueError(
+                        f"Worksheet '{sheet_name}' not found. "
+                        f"Available worksheets: {', '.join(available_sheets)}. "
+                        f"Note: Sheet names are case-sensitive."
+                    )
+                    
             except Exception as e:
-                logging.error(f"Failed to open worksheet: {e}")
-                raise RuntimeError(f"Failed to open worksheet: {e}")
+                # Check if this is a gspread API error
+                error_type = type(e).__name__
+                logging.error(f"Google Sheets error ({error_type}): {e}")
+                
+                if "APIError" in error_type or "permission" in str(e).lower():
+                    raise RuntimeError(
+                        f"Failed to access Google Sheet: {e}. "
+                        f"This usually means:\n"
+                        f"1. The service account doesn't have permission to access the sheet\n"
+                        f"2. The Sheet ID is incorrect: {cls.SHEET_ID}\n"
+                        f"Please share the Google Sheet with the service account email."
+                    )
+                else:
+                    raise RuntimeError(f"Failed to open worksheet: {e}")
         
-        return cls._sheet_cache
+        return cls._sheet_cache[sheet_name]
 
-    def invoke(self, uid: str) -> str:
+    @classmethod
+    def _determine_sheet_name(cls, query_context: str) -> str:
+        """
+        Determine which sheet to query based on the classification category.
+        
+        Args:
+            query_context: The classification category from the prompt (e.g., "查询黑牌用户类", "查询个人活动奖励类")
+            
+        Returns:
+            The sheet name to query
+        """
+        query_lower = query_context.lower()
+        
+        # Direct category to sheet mapping - exact matching first
+        category_sheet_map = {
+            # 黑牌用户类 -> riskcontrol
+            "查询黑牌用户类": "riskcontrol",
+            "黑牌用户类": "riskcontrol",
+            "黑牌用户": "riskcontrol",
+            
+            # 个人活动奖励类 -> reward
+            "查询个人活动奖励类": "reward",
+            "个人活动奖励类": "reward",
+            "活动奖励类": "reward",
+            "奖励类": "reward",
+            
+            # 问题类 -> 可以根据实际情况映射
+            # "查询问题类": "riskcontrol",  # 假设问题类查询风控
+            # "问题类": "riskcontrol",
+        }
+        
+        # First try exact category matching (case-insensitive)
+        for category, sheet_name in category_sheet_map.items():
+            if category in query_lower:
+                logging.info(f"Matched category '{category}' -> sheet '{sheet_name}' (context: {query_context})")
+                return sheet_name
+        
+        # Fallback: keyword matching for flexibility
+        sheet_keywords = {
+            "riskcontrol": [
+                # 风控相关
+                "risk", "风险", "riskcontrol", "风控", "control",
+                # 黑名单相关
+                "黑牌", "黑名单", "blacklist", "blocked", "封禁", "banned",
+                # 提现/账户问题相关
+                "提现", "withdraw", "无法提现", "不能提现", "提款", 
+                "账户", "account", "冻结", "frozen", "限制", "restricted",
+                # 异常相关
+                "异常", "问题", "issue", "problem"
+            ],
+            "reward": [
+                "reward", "奖励", "bonus", "红利", "积分", "points",
+                "活动", "activity", "促销", "promotion", "返水", "rebate"
+            ],
+        }
+        
+        # Check for keyword matches
+        for sheet_name, keywords in sheet_keywords.items():
+            if any(keyword in query_lower for keyword in keywords):
+                logging.info(f"Matched keyword -> sheet '{sheet_name}' (context: {query_context})")
+                return sheet_name
+        
+        # Default to 'reward' if no match found
+        logging.info(f"No category or keyword match found, defaulting to 'reward' sheet (context: {query_context})")
+        return "reward"
+
+    def invoke(self, uid: str, query_context: str = "") -> str:
         """
         Query user information by UID from Google Sheets.
+        The system automatically determines which sheet to query based on the query context.
         
         Args:
             uid: The user ID to query
+            query_context: The user's original question (used to determine which sheet to query)
             
         Returns:
             A JSON string containing the user's information, or an error message if not found
         """
         try:
-            logging.info(f"Google Sheets UID Query tool invoked with UID: {uid}")
+            # Automatically determine which sheet to query
+            sheet_name = self._determine_sheet_name(query_context)
+            
+            logging.info(f"Google Sheets UID Query tool invoked with UID: {uid}, determined sheet: {sheet_name} (context: {query_context})")
             
             # Get the worksheet
-            sheet = self._get_sheet()
+            sheet = self._get_sheet(sheet_name)
             
             # Get all records from the sheet
             all_records = sheet.get_all_records()
@@ -172,27 +281,30 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
                 result = {
                     "success": True,
                     "uid": uid,
+                    "sheet": sheet_name,
                     "data": user_data,
-                    "message": f"Successfully found user data for UID: {uid}"
+                    "message": f"Successfully found user data for UID: {uid} in sheet '{sheet_name}'"
                 }
-                logging.info(f"Found user data for UID {uid}")
+                logging.info(f"Found user data for UID {uid} in sheet {sheet_name}")
                 return json.dumps(result, ensure_ascii=False, indent=2)
             else:
                 result = {
                     "success": False,
                     "uid": uid,
+                    "sheet": sheet_name,
                     "data": None,
-                    "message": f"No user found with UID: {uid}"
+                    "message": f"No user found with UID: {uid} in sheet '{sheet_name}'"
                 }
-                logging.warning(f"No user found for UID {uid}")
+                logging.warning(f"No user found for UID {uid} in sheet {sheet_name}")
                 return json.dumps(result, ensure_ascii=False, indent=2)
                 
         except Exception as e:
             error_msg = str(e)
-            logging.error(f"Error querying Google Sheets for UID {uid}: {error_msg}")
+            logging.error(f"Error querying Google Sheets for UID {uid} in sheet {sheet_name}: {error_msg}")
             result = {
                 "success": False,
                 "uid": uid,
+                "sheet": sheet_name,
                 "error": error_msg,
                 "message": f"Failed to query user data: {error_msg}"
             }
@@ -202,5 +314,5 @@ class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
     def clear_cache(cls):
         """Clear cached client and sheet (useful for testing or credential updates)"""
         cls._client_cache = None
-        cls._sheet_cache = None
+        cls._sheet_cache = {}
         logging.info("Google Sheets client cache cleared")

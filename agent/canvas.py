@@ -142,10 +142,16 @@ class Graph:
         return self.components.get(cpn_id)
 
     def get_component_obj(self, cpn_id) -> ComponentBase:
-        return self.components.get(cpn_id)["obj"]
+        component = self.components.get(cpn_id)
+        if component is None:
+            raise ValueError(f"Component with ID '{cpn_id}' not found in canvas. Available components: {list(self.components.keys())}")
+        return component["obj"]
 
     def get_component_type(self, cpn_id) -> str:
-        return self.components.get(cpn_id)["obj"].component_name
+        component = self.components.get(cpn_id)
+        if component is None:
+            raise ValueError(f"Component with ID '{cpn_id}' not found in canvas")
+        return component["obj"].component_name
 
     def get_component_input_form(self, cpn_id) -> dict:
         return self.components.get(cpn_id)["obj"].get_input_form()
