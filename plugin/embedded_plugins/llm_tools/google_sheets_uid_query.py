@@ -8,20 +8,19 @@ It connects to Google Sheets API using service account credentials and retrieves
 import json
 import logging
 import os
-from typing import TYPE_CHECKING, Optional, Any
+from typing import Optional, Any
 
-if TYPE_CHECKING:
-    import gspread
+from plugin.llm_tool_plugin import LLMToolMetadata, LLMToolPlugin
 
 try:
     import gspread
     from google.oauth2.service_account import Credentials
     GSPREAD_AVAILABLE = True
 except ImportError:
+    gspread = None  # type: ignore
+    Credentials = None  # type: ignore
     GSPREAD_AVAILABLE = False
     logging.warning("gspread or google-auth library not installed. Google Sheets UID Query plugin will not work.")
-
-from plugin.llm_tool_plugin import LLMToolMetadata, LLMToolPlugin
 
 
 class GoogleSheetsUIDQueryPlugin(LLMToolPlugin):
