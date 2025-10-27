@@ -455,6 +455,47 @@ async def list_tools(*, connector) -> list[types.Tool]:
                 "required": ["uid"],
             },
         ),
+        types.Tool(
+            name="web_scraper",
+            description="Scrape and extract content from web pages. Perfect for retrieving privacy policies, terms of service, documentation, articles, and other web content. Supports extracting content as markdown, plain text, or HTML. Can target specific sections using CSS selectors.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL of the web page to scrape (must include http:// or https://)",
+                    },
+                    "format": {
+                        "type": "string",
+                        "enum": ["markdown", "text", "html"],
+                        "description": "Output format: 'markdown' (default, best for LLM), 'text' (plain text), or 'html' (raw HTML)",
+                        "default": "markdown",
+                    },
+                    "selector": {
+                        "type": "string",
+                        "description": "Optional CSS selector to extract only specific content (e.g., 'article', '.main-content', '#privacy-policy'). If not provided, extracts entire page.",
+                    },
+                    "remove_scripts": {
+                        "type": "boolean",
+                        "description": "Remove <script> tags from output (default: true)",
+                        "default": True,
+                    },
+                    "remove_styles": {
+                        "type": "boolean",
+                        "description": "Remove <style> tags from output (default: true)",
+                        "default": True,
+                    },
+                    "timeout": {
+                        "type": "integer",
+                        "description": "Request timeout in seconds (default: 30)",
+                        "default": 30,
+                        "minimum": 5,
+                        "maximum": 120,
+                    },
+                },
+                "required": ["url"],
+            },
+        ),
     ]
 
 
@@ -521,6 +562,37 @@ async def call_tool(name: str, arguments: dict, *, connector) -> list[types.Text
                 "uid": uid,
                 "error": str(e),
                 "message": f"Failed to query Google Sheets: {e}"
+            }
+            return [types.TextContent(type="text", text=json.dumps(error_result, ensure_ascii=False))]
+    elif name == "web_scraper":
+        url = arguments.get("url", "")
+        if not url:
+            return [types.TextContent(type="text", text=json.dumps({"success": False, "error": "URL is required"}))]
+        
+        format_type = arguments.get("format", "markdown")
+        selector = arguments.get("selector")
+        remove_scripts = arguments.get("remove_scripts", True)
+        remove_styles = arguments.get("remove_styles", True)
+        timeout = arguments.get("timeout", 30)
+        
+        try:
+            from plugin.embedded_plugins.llm_tools.web_scraper import WebScraperPlugin
+            plugin = WebScraperPlugin()
+            result = plugin.invoke(
+                url=url,
+                format=format_type,
+                selector=selector,
+                remove_scripts=remove_scripts,
+                remove_styles=remove_styles,
+                timeout=timeout
+            )
+            return [types.TextContent(type="text", text=result)]
+        except Exception as e:
+            error_result = {
+                "success": False,
+                "url": url,
+                "error": str(e),
+                "message": f"Failed to scrape webpage: {e}"
             }
             return [types.TextContent(type="text", text=json.dumps(error_result, ensure_ascii=False))]
     
