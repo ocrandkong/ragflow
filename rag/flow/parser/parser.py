@@ -26,7 +26,7 @@ from api.db import LLMType
 from api.db.services.file2document_service import File2DocumentService
 from api.db.services.file_service import FileService
 from api.db.services.llm_service import LLMBundle
-from api.utils import get_uuid
+from common.misc_utils import get_uuid
 from api.utils.base64_image import image2id
 from deepdoc.parser import ExcelParser
 from deepdoc.parser.mineru_parser import MinerUParser
@@ -222,7 +222,8 @@ class Parser(ProcessBase):
             bboxes = [{"text": t} for t, _ in lines]
         elif conf.get("parse_method").lower() == "mineru":
             mineru_executable = os.environ.get("MINERU_EXECUTABLE", "mineru")
-            pdf_parser = MinerUParser(mineru_path=mineru_executable)
+            mineru_api = os.environ.get("MINERU_APISERVER", "http://host.docker.internal:9987")
+            pdf_parser = MinerUParser(mineru_path=mineru_executable, mineru_api=mineru_api)
             if not pdf_parser.check_installation():
                 raise RuntimeError("MinerU not found. Please install it via: pip install -U 'mineru[core]'.")
 
@@ -430,7 +431,7 @@ class Parser(ProcessBase):
         conf = self._param.setups["video"]
         self.set_output("output_format", conf["output_format"])
 
-        cv_mdl = LLMBundle(self._canvas.get_tenant_id(), LLMType.IMAGE2TEXT)
+        cv_mdl = LLMBundle(self._canvas.get_tenant_id(), LLMType.IMAGE2TEXT, llm_name=conf["llm_id"])
         txt = cv_mdl.chat(system="", history=[], gen_conf={}, video_bytes=blob, filename=name)
 
         self.set_output("text", txt)
