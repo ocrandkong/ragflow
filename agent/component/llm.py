@@ -21,7 +21,7 @@ from copy import deepcopy
 from typing import Any, Generator
 import json_repair
 from functools import partial
-from api.db import LLMType
+from common.constants import LLMType
 from api.db.services.llm_service import LLMBundle
 from api.db.services.tenant_llm_service import TenantLLMService
 from agent.component.base import ComponentBase, ComponentParamBase
@@ -216,7 +216,7 @@ class LLM(ComponentBase):
         error: str = ""
         output_structure=None
         try:
-            output_structure=self._param.outputs['structured']
+            output_structure = self._param.outputs['structured']
         except Exception:
             pass
         if output_structure:

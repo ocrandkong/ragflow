@@ -20,7 +20,6 @@ import os
 import networkx as nx
 import trio
 
-from api import settings
 from api.db.services.document_service import DocumentService
 from common.misc_utils import get_uuid
 from common.connection_utils import timeout
@@ -40,6 +39,7 @@ from graphrag.utils import (
 )
 from rag.nlp import rag_tokenizer, search
 from rag.utils.redis_conn import RedisDistributedLock
+from common import settings
 
 
 async def run_graphrag(

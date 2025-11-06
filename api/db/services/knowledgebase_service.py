@@ -17,13 +17,14 @@ from datetime import datetime
 
 from peewee import fn, JOIN
 
-from api.db import StatusEnum, TenantPermission
+from api.db import TenantPermission
 from api.db.db_models import DB, Document, Knowledgebase, User, UserTenant, UserCanvas
 from api.db.services.common_service import CommonService
 from common.time_utils import current_timestamp, datetime_format
 from api.db.services import duplicate_name
 from api.db.services.user_service import TenantService
 from common.misc_utils import get_uuid
+from common.constants import StatusEnum
 from api.constants import DATASET_NAME_LIMIT
 from api.utils.api_utils import get_parser_config, get_data_error_result
 
@@ -91,7 +92,7 @@ class KnowledgebaseService(CommonService):
         # Returns:
         #     If all documents are parsed successfully, returns (True, None)
         #     If any document is not fully parsed, returns (False, error_message)
-        from api.db import TaskStatus
+        from common.constants import TaskStatus
         from api.db.services.document_service import DocumentService
 
         # Get knowledge base information
@@ -285,7 +286,7 @@ class KnowledgebaseService(CommonService):
             (cls.model.status == StatusEnum.VALID.value)
         ).dicts()
         if not kbs:
-            return
+            return None
         return kbs[0]
 
     @classmethod
@@ -381,7 +382,7 @@ class KnowledgebaseService(CommonService):
         """Create a dataset (knowledgebase) by name with kb_app defaults.
 
         This encapsulates the creation logic used in kb_app.create so other callers
-        (including RESTful endpoints) can reuse the same behavior.
+        (including RESTFul endpoints) can reuse the same behavior.
 
         Returns:
             (ok: bool, model_or_msg): On success, returns (True, Knowledgebase model instance);

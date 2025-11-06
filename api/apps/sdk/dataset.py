@@ -20,14 +20,13 @@ import os
 import json
 from flask import request
 from peewee import OperationalError
-from api import settings
-from api.db import FileSource, StatusEnum
 from api.db.db_models import File
 from api.db.services.document_service import DocumentService
 from api.db.services.file2document_service import File2DocumentService
 from api.db.services.file_service import FileService
 from api.db.services.knowledgebase_service import KnowledgebaseService
 from api.db.services.user_service import TenantService
+from common.constants import RetCode, FileSource, StatusEnum
 from api.utils.api_utils import (
     deep_merge,
     get_error_argument_result,
@@ -48,7 +47,8 @@ from api.utils.validation_utils import (
     validate_and_parse_request_args,
 )
 from rag.nlp import search
-from rag.settings import PAGERANK_FLD
+from common.constants import PAGERANK_FLD
+from common import settings
 
 
 @manager.route("/datasets", methods=["POST"])  # noqa: F821
@@ -484,7 +484,7 @@ def knowledge_graph(tenant_id, dataset_id):
         return get_result(
             data=False,
             message='No authorization.',
-            code=settings.RetCode.AUTHENTICATION_ERROR
+            code=RetCode.AUTHENTICATION_ERROR
         )
     _, kb = KnowledgebaseService.get_by_id(dataset_id)
     req = {
@@ -525,7 +525,7 @@ def delete_knowledge_graph(tenant_id, dataset_id):
         return get_result(
             data=False,
             message='No authorization.',
-            code=settings.RetCode.AUTHENTICATION_ERROR
+            code=RetCode.AUTHENTICATION_ERROR
         )
     _, kb = KnowledgebaseService.get_by_id(dataset_id)
     settings.docStoreConn.delete({"knowledge_graph_kwd": ["graph", "subgraph", "entity", "relation"]},
